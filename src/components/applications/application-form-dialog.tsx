@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PersistentForm } from "@/components/forms/persistent-form";
 import { patchJson, postJson } from "@/lib/client-api";
 import { APPLICATION_STATUS_OPTIONS, WORK_MODE_OPTIONS } from "@/lib/constants";
 
@@ -113,12 +114,6 @@ export function ApplicationFormDialog({
   const [resumeId, setResumeId] = React.useState(application?.resumeId ?? "none");
   const isEdit = Boolean(application?.id);
 
-  React.useEffect(() => {
-    if (!open) return;
-    setCompanyId(application?.companyId ?? defaultCompanyId ?? "");
-    setResumeId(application?.resumeId ?? "none");
-  }, [open, application, defaultCompanyId]);
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
@@ -151,6 +146,7 @@ export function ApplicationFormDialog({
       router.refresh();
       onOpenChange(false);
       onSaved?.(result.application.id);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save application");
     } finally {
@@ -168,14 +164,14 @@ export function ApplicationFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <PersistentForm draftKey={`application:${application?.id ?? "new"}`} onSubmit={handleSubmit}>
           <div className="max-h-[68vh] space-y-4 overflow-y-auto p-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Job title" className="sm:col-span-2">
                 <Input name="title" defaultValue={application?.title ?? ""} placeholder="e.g. Senior Site Reliability Engineer" required autoFocus />
               </Field>
               <Field label="Company" required>
-                <Select required value={companyId} onValueChange={setCompanyId}>
+                <Select required name="companyId" value={companyId} onValueChange={setCompanyId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a company" />
                   </SelectTrigger>
@@ -241,7 +237,7 @@ export function ApplicationFormDialog({
                 <Input name="referralSource" defaultValue={application?.referralSource ?? ""} placeholder="Who pointed you to this role?" />
               </Field>
               <Field label="Resume">
-                <Select value={resumeId} onValueChange={setResumeId}>
+                <Select name="resumeId" value={resumeId} onValueChange={setResumeId}>
                   <SelectTrigger>
                     <SelectValue placeholder="No resume" />
                   </SelectTrigger>
@@ -276,7 +272,7 @@ export function ApplicationFormDialog({
               {pending ? "Saving…" : isEdit ? "Save changes" : "Add application"}
             </Button>
           </DialogFooter>
-        </form>
+        </PersistentForm>
       </DialogContent>
     </Dialog>
   );

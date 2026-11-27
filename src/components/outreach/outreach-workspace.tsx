@@ -351,7 +351,7 @@ export function OutreachWorkspace({
       )}
 
       <OutreachFormDialog
-        key={editing?.id ?? "new"}
+        key={`${formOpen ? "open" : "closed"}-${editing?.id ?? "new"}`}
         open={formOpen}
         onOpenChange={setFormOpen}
         contacts={contacts}

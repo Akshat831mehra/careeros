@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PersistentForm } from "@/components/forms/persistent-form";
 import { patchJson, postJson } from "@/lib/client-api";
 import { EVENT_TYPE_OPTIONS } from "@/lib/constants";
 
@@ -103,13 +104,6 @@ export function EventFormDialog({
   const [applicationId, setApplicationId] = React.useState(event?.applicationId ?? defaultApplicationId ?? "none");
   const isEdit = Boolean(event?.id);
 
-  React.useEffect(() => {
-    if (!open) return;
-    setCompanyId(event?.companyId ?? defaultCompanyId ?? "none");
-    setContactId(event?.contactId ?? defaultContactId ?? "none");
-    setApplicationId(event?.applicationId ?? defaultApplicationId ?? "none");
-  }, [open, event, defaultCompanyId, defaultContactId, defaultApplicationId]);
-
   async function handleSubmit(formEvent: React.FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     setPending(true);
@@ -135,6 +129,7 @@ export function EventFormDialog({
       toast.success(event?.id ? "Event updated" : "Follow-up scheduled");
       router.refresh();
       onOpenChange(false);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save event");
     } finally {
@@ -152,7 +147,7 @@ export function EventFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <PersistentForm draftKey={`event:${event?.id ?? "new"}`} onSubmit={handleSubmit}>
           <div className="max-h-[68vh] space-y-4 overflow-y-auto p-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Title" className="sm:col-span-2">
@@ -173,7 +168,7 @@ export function EventFormDialog({
                 </Select>
               </Field>
               <Field label="Company">
-                <Select value={companyId} onValueChange={setCompanyId}>
+                <Select name="companyId" value={companyId} onValueChange={setCompanyId}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -194,7 +189,7 @@ export function EventFormDialog({
                 <Input name="endAt" type="datetime-local" defaultValue={toDateTimeInput(event?.endAt)} />
               </Field>
               <Field label="Contact">
-                <Select value={contactId} onValueChange={setContactId}>
+                <Select name="contactId" value={contactId} onValueChange={setContactId}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -209,7 +204,7 @@ export function EventFormDialog({
                 </Select>
               </Field>
               <Field label="Application">
-                <Select value={applicationId} onValueChange={setApplicationId}>
+                <Select name="applicationId" value={applicationId} onValueChange={setApplicationId}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -253,7 +248,7 @@ export function EventFormDialog({
               {pending ? "Saving…" : isEdit ? "Save changes" : "Schedule"}
             </Button>
           </DialogFooter>
-        </form>
+        </PersistentForm>
       </DialogContent>
     </Dialog>
   );

@@ -164,6 +164,7 @@ model User {
   activities    ActivityLog[]
   savedSearches SavedSearch[]
   jobCaptures   JobCapture[]
+  drafts        UserDraft[]
 
   @@index([email])
 }
@@ -475,4 +476,20 @@ model JobCapture {
   @@unique([userId, source, url])
   @@index([userId, createdAt])
   @@index([userId, status])
+}
+
+/// Ephemeral, user-scoped form drafts. The session cookie determines ownership;
+/// clients never send a user id.
+model UserDraft {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId, updatedAt])
 }

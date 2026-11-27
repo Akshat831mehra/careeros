@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PersistentForm } from "@/components/forms/persistent-form";
 import { patchJson, postJson } from "@/lib/client-api";
 import {
   OUTREACH_CHANNEL_OPTIONS,
@@ -108,16 +109,6 @@ export function OutreachFormDialog({
   const [message, setMessage] = React.useState(record?.message ?? "");
   const isEdit = Boolean(record?.id);
 
-  React.useEffect(() => {
-    if (!open) return;
-    const contact = contacts.find((item) => item.id === (record?.contactId ?? defaultContactId));
-    setContactId(record?.contactId ?? defaultContactId ?? "");
-    setCompanyId(record?.companyId ?? defaultCompanyId ?? contact?.companyId ?? "");
-    setApplicationId(record?.applicationId ?? "none");
-    setSubject(record?.subject ?? "");
-    setMessage(record?.message ?? "");
-  }, [open, record, defaultContactId, defaultCompanyId, contacts]);
-
   function applyTemplate(templateId: string) {
     if (templateId === "none") return;
     const template = templates.find((item) => item.id === templateId);
@@ -152,6 +143,7 @@ export function OutreachFormDialog({
       toast.success(record?.id ? "Outreach updated" : "Outreach logged");
       router.refresh();
       onOpenChange(false);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save outreach");
     } finally {
@@ -169,11 +161,11 @@ export function OutreachFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <PersistentForm draftKey={`outreach:${record?.id ?? "new"}`} onSubmit={handleSubmit}>
           <div className="max-h-[68vh] space-y-4 overflow-y-auto p-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Contact" className="sm:col-span-2">
-                <Select required value={contactId} onValueChange={(value) => {
+                <Select required name="contactId" value={contactId} onValueChange={(value) => {
                   setContactId(value);
                   const contact = contacts.find((item) => item.id === value);
                   if (contact?.companyId && !companyId) setCompanyId(contact.companyId);
@@ -192,7 +184,7 @@ export function OutreachFormDialog({
                 </Select>
               </Field>
               <Field label="Company">
-                <Select required value={companyId} onValueChange={setCompanyId}>
+                <Select required name="companyId" value={companyId} onValueChange={setCompanyId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Choose a company" />
                   </SelectTrigger>
@@ -206,7 +198,7 @@ export function OutreachFormDialog({
                 </Select>
               </Field>
               <Field label="Application">
-                <Select value={applicationId} onValueChange={setApplicationId}>
+                <Select name="applicationId" value={applicationId} onValueChange={setApplicationId}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -313,7 +305,7 @@ export function OutreachFormDialog({
               {pending ? "Saving…" : isEdit ? "Save changes" : "Log outreach"}
             </Button>
           </DialogFooter>
-        </form>
+        </PersistentForm>
       </DialogContent>
     </Dialog>
   );

@@ -68,6 +68,7 @@ export function ContactDetailActions({
       </DropdownMenu>
 
       <ContactFormDialog
+        key={`${editOpen ? "open" : "closed"}-${contact.id}`}
         open={editOpen}
         onOpenChange={setEditOpen}
         companies={companies}

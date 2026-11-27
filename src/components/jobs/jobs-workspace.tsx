@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { deleteJson, patchJson, postJson } from "@/lib/client-api";
 import { savedSearchLocations } from "@/lib/location-utils";
+import { deleteDraftByKey, useDraft } from "@/lib/use-draft";
 import {
   JOB_CAPTURE_KIND_LABELS,
   JOB_CAPTURE_KIND_VARIANTS,
@@ -58,6 +59,32 @@ export type SavedSearchRow = {
   sources: JobSource[];
   createdAt: string;
 };
+
+type SavedSearchDraft = {
+  name: string;
+  query: string;
+  locations: string[];
+  postedWithinHours: string;
+  experienceMin: string;
+  experienceMax: string;
+  sources: JobSource[];
+};
+
+function initialSavedSearchDraft(search?: SavedSearchRow | null): SavedSearchDraft {
+  return {
+    name: search?.name ?? "",
+    query: search?.query ?? "",
+    locations: search ? savedSearchLocations(search) : [],
+    postedWithinHours: String(search?.postedWithinHours ?? 24),
+    experienceMin: search?.experienceMin === null || search?.experienceMin === undefined
+      ? ""
+      : String(search.experienceMin),
+    experienceMax: search?.experienceMax === null || search?.experienceMax === undefined
+      ? ""
+      : String(search.experienceMax),
+    sources: search && search.sources.length > 0 ? [...search.sources] : [...ALL_SOURCES],
+  };
+}
 
 export type CaptureRow = {
   id: string;
@@ -127,10 +154,12 @@ export function JobsWorkspace({
   captures: CaptureRow[];
 }) {
   const router = useRouter();
-  const [sources, setSources] = React.useState<JobSource[]>([...ALL_SOURCES]);
-  const [locations, setLocations] = React.useState<string[]>([]);
   const [editing, setEditing] = React.useState<SavedSearchRow | null>(null);
-  const [formKey, setFormKey] = React.useState(0);
+  const { value: draft, setValue: setDraft, clearDraft } = useDraft<SavedSearchDraft>(
+    `jobs:saved-search:${editing?.id ?? "new"}`,
+    initialSavedSearchDraft(editing),
+  );
+  const { name, query, locations, postedWithinHours, experienceMin, experienceMax, sources } = draft;
   const [saving, setSaving] = React.useState(false);
   const [regenerating, setRegenerating] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
@@ -145,40 +174,37 @@ export function JobsWorkspace({
   );
 
   function toggleSource(source: JobSource) {
-    setSources((current) =>
-      current.includes(source) ? current.filter((item) => item !== source) : [...current, source],
-    );
+    setDraft((current) => ({
+      ...current,
+      sources: current.sources.includes(source)
+        ? current.sources.filter((item) => item !== source)
+        : [...current.sources, source],
+    }));
   }
 
-  function resetForm() {
+  async function resetForm() {
+    await clearDraft();
     setEditing(null);
-    setLocations([]);
-    setSources([...ALL_SOURCES]);
-    setFormKey((current) => current + 1);
   }
 
   function startEdit(search: SavedSearchRow) {
     setEditing(search);
-    setLocations(savedSearchLocations(search));
-    setSources(search.sources.length > 0 ? [...search.sources] : [...ALL_SOURCES]);
-    setFormKey((current) => current + 1);
   }
 
   async function submitSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
-    const fd = new FormData(event.currentTarget);
-    const number = (key: string) => {
-      const value = String(fd.get(key) ?? "").trim();
-      return value ? Number(value) : null;
+    const number = (value: string) => {
+      const trimmed = value.trim();
+      return trimmed ? Number(trimmed) : null;
     };
     const payload = {
-      name: fd.get("name"),
-      query: fd.get("query"),
+      name,
+      query,
       locations,
-      experienceMin: number("experienceMin"),
-      experienceMax: number("experienceMax"),
-      postedWithinHours: number("postedWithinHours") ?? 24,
+      experienceMin: number(experienceMin),
+      experienceMax: number(experienceMax),
+      postedWithinHours: number(postedWithinHours) ?? 24,
       sources,
     };
 
@@ -189,7 +215,7 @@ export function JobsWorkspace({
         await postJson("/api/saved-searches", payload);
       }
       toast.success(editing ? "Saved search updated" : "Saved search created");
-      resetForm();
+      await resetForm();
       router.refresh();
     } catch (error) {
       toast.error(
@@ -207,6 +233,8 @@ export function JobsWorkspace({
     setBusyId(id);
     try {
       await deleteJson(`/api/saved-searches/${id}`);
+      await deleteDraftByKey(`jobs:saved-search:${id}`);
+      if (editing?.id === id) await resetForm();
       toast.success("Saved search deleted");
       router.refresh();
     } catch (error) {
@@ -349,22 +377,40 @@ export function JobsWorkspace({
           </div>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
-          <form key={formKey} onSubmit={submitSearch} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <form onSubmit={submitSearch} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Search name" className="sm:col-span-1">
-              <Input name="name" required defaultValue={editing?.name ?? ""} placeholder="e.g. 1-2 yrs · 24h" />
+              <Input
+                name="name"
+                required
+                value={name}
+                onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                placeholder="e.g. 1-2 yrs · 24h"
+              />
             </Field>
             <Field label="Role or keywords" className="sm:col-span-1">
-              <Input name="query" required defaultValue={editing?.query ?? ""} placeholder="Enter a role or keywords" />
+              <Input
+                name="query"
+                required
+                value={query}
+                onChange={(event) => setDraft((current) => ({ ...current, query: event.target.value }))}
+                placeholder="Enter a role or keywords"
+              />
             </Field>
             <Field label="Location" hint={editing ? "Edit or remove individual cities before updating." : "Choose one or more cities."}>
-              <LocationAutocomplete values={locations} onChange={setLocations} />
+              <LocationAutocomplete
+                values={locations}
+                onChange={(next) => setDraft((current) => ({ ...current, locations: next }))}
+              />
             </Field>
             <Field label="Posted within (hours)">
               <Input
                 name="postedWithinHours"
                 type="number"
                 min={1}
-                defaultValue={editing?.postedWithinHours ?? 24}
+                value={postedWithinHours}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, postedWithinHours: event.target.value }))
+                }
               />
             </Field>
             <Field label="Min experience">
@@ -373,7 +419,10 @@ export function JobsWorkspace({
                 type="number"
                 min={0}
                 placeholder="1"
-                defaultValue={editing?.experienceMin ?? ""}
+                value={experienceMin}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, experienceMin: event.target.value }))
+                }
               />
             </Field>
             <Field label="Max experience">
@@ -382,7 +431,10 @@ export function JobsWorkspace({
                 type="number"
                 min={0}
                 placeholder="2"
-                defaultValue={editing?.experienceMax ?? ""}
+                value={experienceMax}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, experienceMax: event.target.value }))
+                }
               />
             </Field>
             <div className="sm:col-span-2">
@@ -425,7 +477,7 @@ export function JobsWorkspace({
                 {editing ? "Update search" : "Save search"}
               </Button>
               {editing && (
-                <Button type="button" variant="ghost" onClick={resetForm}>
+                <Button type="button" variant="ghost" onClick={() => void resetForm()}>
                   <X className="h-3.5 w-3.5" /> Cancel
                 </Button>
               )}

@@ -63,7 +63,12 @@ export function CompanyDetailActions({ company }: { company: CompanyFormValues &
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <CompanyFormDialog open={editOpen} onOpenChange={setEditOpen} company={company} />
+      <CompanyFormDialog
+        key={`${editOpen ? "open" : "closed"}-${company.id}`}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        company={company}
+      />
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

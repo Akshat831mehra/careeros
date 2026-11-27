@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PersistentForm } from "@/components/forms/persistent-form";
 import { patchJson, postJson } from "@/lib/client-api";
 import {
   COMPANY_STATUS_OPTIONS,
@@ -109,6 +110,7 @@ export function CompanyFormDialog({
       router.refresh();
       onOpenChange(false);
       onSaved?.(result.company.id);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save company");
     } finally {
@@ -128,7 +130,7 @@ export function CompanyFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <PersistentForm draftKey={`company:${company?.id ?? "new"}`} onSubmit={handleSubmit}>
           <div className="max-h-[68vh] space-y-4 overflow-y-auto p-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Company name" className="sm:col-span-2">
@@ -213,7 +215,7 @@ export function CompanyFormDialog({
               {pending ? "Saving…" : isEdit ? "Save changes" : "Add company"}
             </Button>
           </DialogFooter>
-        </form>
+        </PersistentForm>
       </DialogContent>
     </Dialog>
   );

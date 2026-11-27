@@ -46,6 +46,7 @@ export function QuickAddProvider({
     <QuickAddContext.Provider value={{ openQuickAdd }}>
       {children}
       <QuickAddDialog
+        key={`${open ? "open" : "closed"}-${tab}-${defaultCompanyId ?? ""}-${defaultContactId ?? ""}`}
         open={open}
         onOpenChange={setOpen}
         tab={tab}

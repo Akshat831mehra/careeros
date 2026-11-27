@@ -7,10 +7,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { patchJson } from "@/lib/client-api";
+import { useDraft } from "@/lib/use-draft";
 
 export function AccountPhoneSettings({ phone }: { phone: string }) {
   const router = useRouter();
-  const [value, setValue] = React.useState(phone);
+  const { value, setValue, clearDraft } = useDraft("settings:phone", phone);
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -19,6 +20,7 @@ export function AccountPhoneSettings({ phone }: { phone: string }) {
     setError(null);
     try {
       await patchJson("/api/profile", { phone: value.trim() || null });
+      await clearDraft();
       toast.success("Phone number saved");
       router.refresh();
     } catch (err) {

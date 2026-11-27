@@ -45,25 +45,30 @@ async function main() {
 
   const user = await prisma.user.create({
     data: {
-      name: "Akshat Sharma",
+      name: "Hitesh Singh",
       email: DEMO_EMAIL,
       passwordHash,
       profile: {
         create: {
           headline: "DevOps Engineer · Cloud Infrastructure · SRE",
+          location: "Bengaluru, India",
           phone: "+91 98765 43210",
+          openToWork: true,
           currentDesignation: "DevOps Engineer",
           totalExperience: "5.5 years",
           currentCompany: "Nimbus Labs",
-          linkedinUrl: "https://linkedin.com/in/akshatsharma",
-          githubUrl: "https://github.com/akshatsharma",
-          portfolioUrl: "https://akshat.dev",
+          linkedinUrl: "https://linkedin.com/in/hiteshsingh",
+          githubUrl: "https://github.com/hiteshsingh",
+          portfolioUrl: "https://hitesh.dev",
           preferredRoles: ["DevOps Engineer", "Site Reliability Engineer", "Cloud Engineer", "Platform Engineer"],
           preferredLocations: ["Remote", "Bengaluru", "Hybrid"],
+          workMode: "HYBRID",
           expectedSalary: "₹32–40 LPA",
           noticePeriod: "30 days",
           skills: ["Kubernetes", "AWS", "Terraform", "Go", "Python", "Prometheus", "Grafana", "CI/CD", "Linux"],
           bio: "Infrastructure engineer who enjoys building calm, reliable systems. Currently exploring platform and SRE roles at product-led companies.",
+          projectsAchievements:
+            "Migrated a monolith to Kubernetes with zero-downtime rollouts. Built Terraform modules used across 12 services and cut deployment time by 40%.",
         },
       },
     },
@@ -74,8 +79,8 @@ async function main() {
       data: {
         userId: user.id,
         name: "DevOps Engineer Resume",
-        fileName: "akshat-sharma-devops-2026.pdf",
-        fileUrl: "/resumes/akshat-sharma-devops-2026.pdf",
+        fileName: "hitesh-singh-devops-2026.pdf",
+        fileUrl: "/resumes/hitesh-singh-devops-2026.pdf",
         fileSize: 284_000,
         mimeType: "application/pdf",
         isDefault: true,
@@ -85,8 +90,8 @@ async function main() {
       data: {
         userId: user.id,
         name: "Cloud Engineer Resume",
-        fileName: "akshat-sharma-cloud-2026.pdf",
-        fileUrl: "/resumes/akshat-sharma-cloud-2026.pdf",
+        fileName: "hitesh-singh-cloud-2026.pdf",
+        fileUrl: "/resumes/hitesh-singh-cloud-2026.pdf",
         fileSize: 271_000,
         mimeType: "application/pdf",
       },
@@ -95,8 +100,8 @@ async function main() {
       data: {
         userId: user.id,
         name: "SRE Resume",
-        fileName: "akshat-sharma-sre-2026.pdf",
-        fileUrl: "/resumes/akshat-sharma-sre-2026.pdf",
+        fileName: "hitesh-singh-sre-2026.pdf",
+        fileUrl: "/resumes/hitesh-singh-sre-2026.pdf",
         fileSize: 298_000,
         mimeType: "application/pdf",
       },

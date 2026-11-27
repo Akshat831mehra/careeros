@@ -32,7 +32,7 @@ export function SignupForm() {
             id="name"
             name="name"
             autoComplete="name"
-            placeholder="Akshat Sharma"
+            placeholder="Hitesh Singh"
             defaultValue={state.fields?.name ?? ""}
             className="h-10"
             required

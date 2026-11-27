@@ -1,219 +1,235 @@
 import type { Metadata } from "next";
-import {
-  Globe,
-  Mail,
-  MapPin,
-  Phone,
-  Sparkles,
-} from "lucide-react";
+import type { ReactNode } from "react";
+import { MapPin } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/modules/page-header";
 import { ProfileEditButton } from "@/components/profile/profile-edit-button";
-import { ResumeManager } from "@/components/profile/resume-manager";
-import { formatDate, initials } from "@/lib/utils";
+import { ResumeUpload } from "@/components/profile/resume-upload";
 import { GithubIcon, LinkedinIcon } from "@/components/icons";
+import { WORK_MODE_LABELS } from "@/lib/constants";
+import { initials } from "@/lib/utils";
 
 // This route reads the user session on every request; allow it to block navigation.
 export const instant = false;
 
 export const metadata: Metadata = { title: "My Profile" };
 
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-border bg-surface p-5 shadow-card sm:p-6">
+      <div className="mb-4">
+        <h2 className="text-[14px] font-semibold tracking-[-0.01em] text-foreground">{title}</h2>
+        {description && <p className="mt-1 text-[12px] leading-relaxed text-muted">{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Detail({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="border-t border-border py-3 first:border-t-0 first:pt-0 last:pb-0">
+      <dt className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-muted-strong">{label}</dt>
+      <dd className="mt-1 text-[13px] leading-relaxed text-foreground">{children}</dd>
+    </div>
+  );
+}
+
+function Chips({ values }: { values: string[] }) {
+  if (!values.length) return <span className="text-[12px] text-muted">Not added</span>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {values.map((value) => (
+        <span key={value} className="rounded-md border border-border bg-surface-muted/50 px-2 py-1 text-[11px] text-foreground-soft">
+          {value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default async function ProfilePage() {
   const user = await requireUser();
-  const [profile, resumes, applicationCount] = await Promise.all([
+  const [profile, resume] = await Promise.all([
     prisma.candidateProfile.findUnique({ where: { userId: user.id } }),
-    prisma.resume.findMany({ where: { userId: user.id }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] }),
-    prisma.application.count({ where: { userId: user.id } }),
+    prisma.resume.findFirst({
+      where: { userId: user.id, storagePath: { not: null } },
+      orderBy: { updatedAt: "desc" },
+    }),
   ]);
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in space-y-5">
       <PageHeader
-        eyebrow="Candidate profile"
+        eyebrow="Private workspace"
         title="My Profile"
-        description="The source of truth for your search — experience, preferences and resume versions."
+        description="Your private source of truth for career details and job-search preferences."
       >
-        <ProfileEditButton profile={profile ?? null} />
+        <ProfileEditButton
+          name={user.name}
+          profile={
+            profile
+              ? {
+                  headline: profile.headline,
+                  location: profile.location,
+                  openToWork: profile.openToWork,
+                  currentDesignation: profile.currentDesignation,
+                  totalExperience: profile.totalExperience,
+                  currentCompany: profile.currentCompany,
+                  linkedinUrl: profile.linkedinUrl,
+                  githubUrl: profile.githubUrl,
+                  preferredRoles: profile.preferredRoles,
+                  preferredLocations: profile.preferredLocations,
+                  workMode: profile.workMode,
+                  expectedSalary: profile.expectedSalary,
+                  noticePeriod: profile.noticePeriod,
+                  skills: profile.skills,
+                  bio: profile.bio,
+                  projectsAchievements: profile.projectsAchievements,
+                  updatedAt: profile.updatedAt,
+                }
+              : null
+          }
+        />
       </PageHeader>
 
-      <Card className="overflow-hidden">
-        <div className="dotted-grid h-20 border-b border-border bg-surface-muted/60" />
-        <CardContent className="relative -mt-9 p-5 pt-0 sm:p-6 sm:pt-0">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex items-end gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-surface bg-foreground text-[22px] font-semibold text-background shadow-sm">
-                {initials(user.name)}
-              </div>
-              <div className="pb-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-[20px] font-semibold tracking-[-0.03em] text-foreground">{user.name}</h2>
-                  <Badge variant="success">Open to work</Badge>
-                </div>
-                <p className="mt-1 text-[12px] text-muted">{profile?.headline ?? "Add your headline"}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-[10.5px] text-muted">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {profile?.preferredLocations.join(", ") || "Add locations"}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    {user.email}
-                  </span>
-                </div>
-              </div>
+      <section className="rounded-xl border border-border bg-surface p-5 shadow-card sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-border bg-foreground text-[18px] font-semibold text-background">
+              {initials(user.name)}
             </div>
-            <div className="flex flex-wrap items-center gap-2 pb-1">
-              {profile?.linkedinUrl && (
-                <Button variant="secondary" size="sm" asChild>
-                  <a href={profile.linkedinUrl} target="_blank" rel="noreferrer">
-                    <LinkedinIcon className="h-3.5 w-3.5" />
-                    LinkedIn
-                  </a>
-                </Button>
-              )}
-              {profile?.githubUrl && (
-                <Button variant="secondary" size="sm" asChild>
-                  <a href={profile.githubUrl} target="_blank" rel="noreferrer">
-                    <GithubIcon className="h-3.5 w-3.5" />
-                    GitHub
-                  </a>
-                </Button>
-              )}
-              {profile?.portfolioUrl && (
-                <Button variant="secondary" size="sm" asChild>
-                  <a href={profile.portfolioUrl} target="_blank" rel="noreferrer">
-                    <Globe className="h-3.5 w-3.5" />
-                    Portfolio
-                  </a>
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-2 gap-3 border-t border-border pt-5 sm:grid-cols-4">
-            {[
-              { label: "Experience", value: profile?.totalExperience ?? "—" },
-              { label: "Applications", value: applicationCount },
-              { label: "Resume versions", value: resumes.length },
-              { label: "Member since", value: formatDate(user.createdAt) },
-            ].map((stat) => (
-              <div key={stat.label}>
-                <p className="text-[9.5px] font-medium uppercase tracking-[0.08em] text-muted">{stat.label}</p>
-                <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-foreground">{stat.value}</p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-[19px] font-semibold tracking-[-0.03em] text-foreground">{user.name}</h2>
+                {profile?.openToWork && <Badge variant="success">Open to work</Badge>}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <div className="space-y-4 xl:col-span-7">
-          <Card>
-            <CardHeader>
-              <CardTitle>About</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-3">
-              <p className="text-[12px] leading-relaxed text-muted-strong">
-                {profile?.bio ??
-                  "Add a short summary of who you are, the problems you like solving, and what you're looking for next."}
+              <p className="mt-1 text-[13px] text-foreground-soft">
+                {profile?.headline || "Add your professional headline"}
               </p>
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {profile?.skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="rounded-md border border-border bg-surface-muted px-2 py-1 text-[10.5px] text-muted-strong"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+              <p className="mt-2 flex items-center gap-1.5 text-[11.5px] text-muted">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                {profile?.location || "Add your location"}
+              </p>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Resume versions</CardTitle>
-              <span className="text-[10px] text-muted">{resumes.length} files</span>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <ResumeManager resumes={resumes} />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-4 xl:col-span-5">
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-4">
-              {[
-                { icon: Mail, label: "Email", value: user.email },
-                { icon: Phone, label: "Phone", value: profile?.phone ?? "Not added" },
-                { icon: LinkedinIcon, label: "LinkedIn", value: profile?.linkedinUrl ? "View profile" : "Not added" },
-                { icon: GithubIcon, label: "GitHub", value: profile?.githubUrl ? "View profile" : "Not added" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-2.5">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface-muted text-muted">
-                    <item.icon className="h-3 w-3" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[9.5px] uppercase tracking-[0.06em] text-muted">{item.label}</p>
-                    <p className="truncate text-[11.5px] text-foreground-soft">{item.value}</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Job preferences</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-4">
-              <div>
-                <p className="text-[9.5px] uppercase tracking-[0.06em] text-muted">Preferred roles</p>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {profile?.preferredRoles.map((role) => (
-                    <Badge key={role} variant="brand">
-                      {role}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-[9.5px] uppercase tracking-[0.06em] text-muted">Locations</p>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {profile?.preferredLocations.map((location) => (
-                    <Badge key={location}>{location}</Badge>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 border-t border-border pt-3">
-                <div>
-                  <p className="text-[9.5px] uppercase tracking-[0.06em] text-muted">Expected salary</p>
-                  <p className="mt-1 text-[11.5px] font-medium text-foreground">{profile?.expectedSalary ?? "—"}</p>
-                </div>
-                <div>
-                  <p className="text-[9.5px] uppercase tracking-[0.06em] text-muted">Notice period</p>
-                  <p className="mt-1 text-[11.5px] font-medium text-foreground">{profile?.noticePeriod ?? "—"}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex items-start gap-2.5 rounded-xl border border-brand/15 bg-brand-soft/50 px-4 py-3">
-            <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" />
-            <p className="text-[10.5px] leading-relaxed text-muted-strong">
-              A strong profile makes outreach easier. Keep your resume versions and preferences current before your next application.
-            </p>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            {profile?.linkedinUrl && (
+              <Button variant="secondary" size="sm" asChild>
+                <a href={profile.linkedinUrl} target="_blank" rel="noreferrer">
+                  <LinkedinIcon className="h-3.5 w-3.5" />
+                  LinkedIn
+                </a>
+              </Button>
+            )}
+            {profile?.githubUrl && (
+              <Button variant="secondary" size="sm" asChild>
+                <a href={profile.githubUrl} target="_blank" rel="noreferrer">
+                  <GithubIcon className="h-3.5 w-3.5" />
+                  GitHub
+                </a>
+              </Button>
+            )}
           </div>
         </div>
+
+        {profile?.bio && (
+          <div className="mt-5 border-t border-border pt-5">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-strong">
+              Professional summary
+            </h3>
+            <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed text-foreground-soft">{profile.bio}</p>
+          </div>
+        )}
+      </section>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Section title="Professional information" description="Your experience, skills and saved professional links.">
+          <dl>
+            <Detail label="Current role">{profile?.currentDesignation || "Not added"}</Detail>
+            <Detail label="Total experience">{profile?.totalExperience || "Not added"}</Detail>
+            <Detail label="Technical skills">
+              <Chips values={profile?.skills ?? []} />
+            </Detail>
+            <Detail label="Projects and achievements">
+              {profile?.projectsAchievements ? (
+                <span className="whitespace-pre-line">{profile.projectsAchievements}</span>
+              ) : (
+                <span className="text-muted">Not added</span>
+              )}
+            </Detail>
+            <Detail label="LinkedIn">
+              {profile?.linkedinUrl ? (
+                <a
+                  href={profile.linkedinUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="break-all text-brand transition-colors hover:text-brand-hover"
+                >
+                  {profile.linkedinUrl}
+                </a>
+              ) : (
+                <span className="text-muted">Not added</span>
+              )}
+            </Detail>
+            <Detail label="GitHub">
+              {profile?.githubUrl ? (
+                <a
+                  href={profile.githubUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="break-all text-brand transition-colors hover:text-brand-hover"
+                >
+                  {profile.githubUrl}
+                </a>
+              ) : (
+                <span className="text-muted">Not added</span>
+              )}
+            </Detail>
+          </dl>
+        </Section>
+
+        <Section title="Job preferences" description="Used to keep your search focused. Nothing here is public.">
+          <dl>
+            <Detail label="Preferred job roles">
+              <Chips values={profile?.preferredRoles ?? []} />
+            </Detail>
+            <Detail label="Preferred locations">
+              <Chips values={profile?.preferredLocations ?? []} />
+            </Detail>
+            <Detail label="Work mode">
+              {profile?.workMode ? WORK_MODE_LABELS[profile.workMode] : "Not set"}
+            </Detail>
+            <Detail label="Expected salary">{profile?.expectedSalary || "Not added"}</Detail>
+            <Detail label="Notice period">{profile?.noticePeriod || "Not added"}</Detail>
+          </dl>
+        </Section>
       </div>
+
+      <ResumeUpload
+        resume={
+          resume
+            ? {
+                fileName: resume.fileName,
+                fileSize: resume.fileSize,
+                mimeType: resume.mimeType,
+                updatedAt: resume.updatedAt.toISOString(),
+              }
+            : null
+        }
+      />
     </div>
   );
 }

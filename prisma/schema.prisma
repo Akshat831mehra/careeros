@@ -169,24 +169,28 @@ model User {
 }
 
 model CandidateProfile {
-  id                 String   @id @default(cuid())
-  userId             String   @unique
-  headline           String?
-  phone              String?
-  currentDesignation String?
-  totalExperience    String?
-  currentCompany     String?
-  linkedinUrl        String?
-  githubUrl          String?
-  portfolioUrl       String?
-  preferredRoles     String[] @default([])
-  preferredLocations String[] @default([])
-  expectedSalary     String?
-  noticePeriod       String?
-  skills             String[] @default([])
-  bio                String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  headline             String?
+  location             String?
+  phone                String?
+  openToWork           Boolean   @default(false)
+  currentDesignation   String?
+  totalExperience      String?
+  currentCompany       String?
+  linkedinUrl          String?
+  githubUrl            String?
+  portfolioUrl         String?
+  preferredRoles       String[]  @default([])
+  preferredLocations   String[]  @default([])
+  workMode             WorkMode?
+  expectedSalary       String?
+  noticePeriod         String?
+  skills               String[]  @default([])
+  bio                  String?
+  projectsAchievements String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -285,16 +289,17 @@ model Application {
 }
 
 model Resume {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  fileName  String
-  fileUrl   String
-  fileSize  Int?
-  mimeType  String?
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  fileName    String
+  fileUrl     String
+  fileSize    Int?
+  mimeType    String?
+  storagePath String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   applications Application[]

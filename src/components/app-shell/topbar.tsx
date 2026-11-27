@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
@@ -34,9 +35,14 @@ export function Topbar({
       <div className="flex min-w-0 items-center gap-2">
         <MobileSidebar user={user} counts={counts} />
         <div className="hidden items-center gap-1.5 text-[11px] text-muted md:flex">
-          <span>Workspace</span>
+          <Link
+            href="/"
+            className="cursor-pointer transition-colors hover:text-foreground-soft"
+          >
+            Workspace
+          </Link>
           <ChevronRight className="h-3 w-3 text-muted/50" />
-          <span className="font-medium text-foreground-soft">{title}</span>
+          <span aria-current="page" className="font-medium text-foreground-soft">{title}</span>
         </div>
         <span className="truncate text-[13px] font-medium text-foreground md:hidden">{title}</span>
       </div>

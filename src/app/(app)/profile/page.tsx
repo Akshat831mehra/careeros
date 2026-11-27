@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/modules/page-header";
 import { ProfileEditButton } from "@/components/profile/profile-edit-button";
-import { ResumeUpload } from "@/components/profile/resume-upload";
+import { ResumeManager } from "@/components/profile/resume-manager";
 import { GithubIcon, LinkedinIcon } from "@/components/icons";
 import { WORK_MODE_LABELS } from "@/lib/constants";
 import { initials } from "@/lib/utils";
@@ -61,11 +61,11 @@ function Chips({ values }: { values: string[] }) {
 
 export default async function ProfilePage() {
   const user = await requireUser();
-  const [profile, resume] = await Promise.all([
+  const [profile, resumes] = await Promise.all([
     prisma.candidateProfile.findUnique({ where: { userId: user.id } }),
-    prisma.resume.findFirst({
-      where: { userId: user.id, storagePath: { not: null } },
-      orderBy: { updatedAt: "desc" },
+    prisma.resume.findMany({
+      where: { userId: user.id },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     }),
   ]);
 
@@ -218,17 +218,19 @@ export default async function ProfilePage() {
         </Section>
       </div>
 
-      <ResumeUpload
-        resume={
-          resume
-            ? {
-                fileName: resume.fileName,
-                fileSize: resume.fileSize,
-                mimeType: resume.mimeType,
-                updatedAt: resume.updatedAt.toISOString(),
-              }
-            : null
-        }
+      <ResumeManager
+        key={user.id}
+        resumes={resumes.map((resume) => ({
+          id: resume.id,
+          name: resume.name,
+          fileName: resume.fileName,
+          fileUrl: resume.fileUrl,
+          fileSize: resume.fileSize,
+          mimeType: resume.mimeType,
+          isDefault: resume.isDefault,
+          createdAt: resume.createdAt.toISOString(),
+          updatedAt: resume.updatedAt.toISOString(),
+        }))}
       />
     </div>
   );

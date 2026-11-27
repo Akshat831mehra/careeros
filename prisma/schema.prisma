@@ -426,7 +426,9 @@ model SavedSearch {
   userId            String
   name              String
   query             String
+  /// Legacy single-location field. New searches use `locations`; this keeps older records working.
   location          String?
+  locations         String[] @default([])
   experienceMin     Int?
   experienceMax     Int?
   postedWithinHours Int?

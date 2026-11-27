@@ -40,6 +40,7 @@ export default async function JobsPage() {
     name: search.name,
     query: search.query,
     location: search.location,
+    locations: search.locations,
     experienceMin: search.experienceMin,
     experienceMax: search.experienceMax,
     postedWithinHours: search.postedWithinHours,

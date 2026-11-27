@@ -210,10 +210,13 @@ export const profileUpdateSchema = z.object({
   projectsAchievements: optionalText,
 });
 
+const savedSearchCityNames = z.array(z.string().trim().min(1).max(120)).optional();
+
 const savedSearchFields = {
   name: z.string().trim().min(2, "Give this search a name").max(80),
   query: z.string().trim().min(1, "Enter a role or keyword").max(160),
   location: optionalText,
+  locations: savedSearchCityNames,
   experienceMin: z.number().int().min(0).max(50).nullable().optional(),
   experienceMax: z.number().int().min(0).max(50).nullable().optional(),
   postedWithinHours: z.number().int().min(1).max(2160).nullable().optional(),
@@ -230,7 +233,16 @@ export const savedSearchCreateSchema = z
     { message: "Minimum experience cannot be greater than maximum", path: ["experienceMin"] },
   );
 
-export const savedSearchUpdateSchema = z.object(savedSearchFields).partial();
+export const savedSearchUpdateSchema = z
+  .object(savedSearchFields)
+  .partial()
+  .refine(
+    (data) =>
+      data.experienceMin == null ||
+      data.experienceMax == null ||
+      data.experienceMin <= data.experienceMax,
+    { message: "Minimum experience cannot be greater than maximum", path: ["experienceMin"] },
+  );
 
 const capturedJobSchema = z.object({
   externalId: optionalText,

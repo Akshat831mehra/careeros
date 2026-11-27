@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeCityNames } from "@/lib/location-utils";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import {
@@ -21,12 +22,20 @@ export async function POST(request: Request) {
 
   try {
     const data = savedSearchCreateSchema.parse(await request.json());
+    const cities = normalizeCityNames(
+      data.locations !== undefined
+        ? data.locations
+        : data.location
+          ? [data.location]
+          : [],
+    );
     const savedSearch = await prisma.savedSearch.create({
       data: {
         userId: user.id,
         name: data.name,
         query: data.query,
-        location: data.location ?? null,
+        location: cities[0] ?? null,
+        locations: cities,
         experienceMin: data.experienceMin ?? null,
         experienceMax: data.experienceMax ?? null,
         postedWithinHours: data.postedWithinHours ?? null,

@@ -1,0 +1,471 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum CompanyStatus {
+  TARGET
+  CONTACTED
+  APPLIED
+  NOT_INTERESTED
+}
+
+enum WorkMode {
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+enum ApplicationStatus {
+  INTERESTED
+  PREPARING
+  APPLIED
+  HR_CONTACTED
+  RECRUITER_SCREENING
+  TECHNICAL_INTERVIEW
+  MANAGERIAL_INTERVIEW
+  FINAL_INTERVIEW
+  OFFER_RECEIVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ContactType {
+  HR
+  RECRUITER
+  TALENT_ACQUISITION
+  ENGINEERING_MANAGER
+  DEVOPS_LEAD
+  SRE_MANAGER
+  CTO
+  SENIOR_ENGINEER
+  EMPLOYEE_REFERRAL
+  OTHER
+}
+
+enum RelationshipStatus {
+  NOT_CONTACTED
+  CONTACTED
+  CONNECTED_ON_LINKEDIN
+  REPLIED
+  FOLLOW_UP_REQUIRED
+  INTERESTED
+  NOT_INTERESTED
+}
+
+enum OutreachChannel {
+  COLD_EMAIL
+  LINKEDIN_CONNECTION
+  LINKEDIN_MESSAGE
+  REFERRAL_REQUEST
+  HR_FOLLOW_UP
+}
+
+enum OutreachStatus {
+  DRAFT
+  READY_TO_SEND
+  SENT
+  AWAITING_RESPONSE
+  REPLIED
+  FOLLOW_UP_DUE
+  COMPLETED
+}
+
+enum EventType {
+  HR_FOLLOW_UP
+  RECRUITER_FOLLOW_UP
+  INTERVIEW
+  TECHNICAL_ASSESSMENT
+  APPLICATION_DEADLINE
+  NETWORKING
+  CUSTOM
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ActivityType {
+  APPLICATION_SUBMITTED
+  HR_CONTACTED
+  LINKEDIN_MESSAGE
+  FOLLOW_UP_COMPLETED
+  INTERVIEW_SCHEDULED
+  STATUS_UPDATED
+  COMPANY_ADDED
+  CONTACT_ADDED
+  OUTREACH_SENT
+  EVENT_SCHEDULED
+  TASK_ADDED
+  TASK_COMPLETED
+}
+
+enum JobSource {
+  LINKEDIN
+  NAUKRI
+  INDEED
+  INSTAHYRE
+  CUTSHORT
+  HIRIST
+  WELLFOUND
+  OTHER
+}
+
+enum JobCaptureKind {
+  SEARCH_RESULT
+  APPLIED
+}
+
+enum JobCaptureStatus {
+  NEW
+  TRACKED
+  IGNORED
+}
+
+// ─────────────────────────────────────────────────────────────
+// Models
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  image        String?
+  apiToken     String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile       CandidateProfile?
+  companies     Company[]
+  contacts      Contact[]
+  applications  Application[]
+  resumes       Resume[]
+  outreach      Outreach[]
+  templates     EmailTemplate[]
+  events        CalendarEvent[]
+  tasks         Task[]
+  activities    ActivityLog[]
+  savedSearches SavedSearch[]
+  jobCaptures   JobCapture[]
+
+  @@index([email])
+}
+
+model CandidateProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  headline           String?
+  phone              String?
+  currentDesignation String?
+  totalExperience    String?
+  currentCompany     String?
+  linkedinUrl        String?
+  githubUrl          String?
+  portfolioUrl       String?
+  preferredRoles     String[] @default([])
+  preferredLocations String[] @default([])
+  expectedSalary     String?
+  noticePeriod       String?
+  skills             String[] @default([])
+  bio                String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Company {
+  id          String        @id @default(cuid())
+  userId      String
+  name        String
+  logoUrl     String?
+  website     String?
+  careersUrl  String?
+  linkedinUrl String?
+  industry    String?
+  location    String?
+  size        String?
+  priority    Priority      @default(MEDIUM)
+  status      CompanyStatus @default(TARGET)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contacts     Contact[]
+  applications Application[]
+  outreach     Outreach[]
+  events       CalendarEvent[]
+  tasks        Task[]
+  activities   ActivityLog[]
+  jobCaptures  JobCapture[]
+
+  @@index([userId, status])
+  @@index([userId, priority])
+}
+
+model Contact {
+  id               String             @id @default(cuid())
+  userId           String
+  companyId        String?
+  fullName         String
+  avatarUrl        String?
+  designation      String?
+  department       String?
+  email            String?
+  linkedinUrl      String?
+  phone            String?
+  type             ContactType        @default(OTHER)
+  relationship     RelationshipStatus @default(NOT_CONTACTED)
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company      Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  outreach     Outreach[]
+  events       CalendarEvent[]
+  tasks        Task[]
+  activities   ActivityLog[]
+
+  @@index([userId, companyId])
+  @@index([userId, relationship])
+}
+
+model Application {
+  id             String            @id @default(cuid())
+  userId         String
+  companyId      String
+  title          String
+  description    String?
+  postingUrl     String?
+  careersUrl     String?
+  location       String?
+  workMode       WorkMode          @default(REMOTE)
+  employmentType String            @default("Full-time")
+  salaryRange    String?
+  dateApplied    DateTime?
+  resumeId       String?
+  referralSource String?
+  status         ApplicationStatus @default(INTERESTED)
+  nextFollowUp   DateTime?
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company    Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  resume     Resume?       @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  outreach   Outreach[]
+  events     CalendarEvent[]
+  tasks      Task[]
+  activities ActivityLog[]
+  jobCaptures JobCapture[]
+
+  @@index([userId, status])
+  @@index([userId, companyId])
+  @@index([userId, dateApplied])
+}
+
+model Resume {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  fileName  String
+  fileUrl   String
+  fileSize  Int?
+  mimeType  String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@index([userId])
+}
+
+model Outreach {
+  id             String          @id @default(cuid())
+  userId         String
+  contactId      String
+  companyId      String
+  applicationId  String?
+  channel        OutreachChannel
+  subject        String?
+  message        String
+  sentAt         DateTime?
+  status         OutreachStatus  @default(DRAFT)
+  responseStatus String?
+  nextFollowUp   DateTime?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact     Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  activities  ActivityLog[]
+
+  @@index([userId, status])
+  @@index([userId, contactId])
+  @@index([userId, nextFollowUp])
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  category  String
+  subject   String
+  body      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model CalendarEvent {
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  type          EventType @default(CUSTOM)
+  startAt       DateTime
+  endAt         DateTime?
+  allDay        Boolean   @default(false)
+  companyId     String?
+  contactId     String?
+  applicationId String?
+  description   String?
+  completed     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startAt])
+  @@index([userId, completed])
+}
+
+model Task {
+  id            String     @id @default(cuid())
+  userId        String
+  title         String
+  description   String?
+  priority      Priority   @default(MEDIUM)
+  dueDate       DateTime?
+  companyId     String?
+  contactId     String?
+  applicationId String?
+  status        TaskStatus @default(PENDING)
+  completedAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, dueDate])
+}
+
+model ActivityLog {
+  id            String       @id @default(cuid())
+  userId        String
+  type          ActivityType
+  title         String
+  description   String?
+  companyId     String?
+  contactId     String?
+  applicationId String?
+  outreachId    String?
+  metadata      Json?
+  createdAt     DateTime     @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  outreach    Outreach?    @relation(fields: [outreachId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model SavedSearch {
+  id                String     @id @default(cuid())
+  userId            String
+  name              String
+  query             String
+  location          String?
+  experienceMin     Int?
+  experienceMax     Int?
+  postedWithinHours Int?
+  sources           JobSource[] @default([])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model JobCapture {
+  id             String           @id @default(cuid())
+  userId         String
+  source         JobSource
+  kind           JobCaptureKind
+  status         JobCaptureStatus @default(NEW)
+  externalId     String?
+  url            String
+  title          String
+  companyName    String
+  companyUrl     String?
+  location       String?
+  employmentType String?
+  experienceMin  Int?
+  experienceMax  Int?
+  postedAt       DateTime?
+  description    String?
+  salaryText     String?
+  searchQuery    String?
+  searchLocation String?
+  savedSearchId  String?
+  companyId      String?
+  applicationId  String?
+  raw            Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, source, url])
+  @@index([userId, createdAt])
+  @@index([userId, status])
+}

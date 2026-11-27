@@ -8,12 +8,17 @@ export async function PATCH(request: Request) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const data = profileUpdateSchema.parse(await request.json());
+    const { name, ...profileData } = profileUpdateSchema.parse(await request.json());
 
-    const profile = await prisma.candidateProfile.upsert({
-      where: { userId },
-      create: { userId, ...data },
-      update: { ...data, updatedAt: new Date() },
+    const profile = await prisma.$transaction(async (tx) => {
+      if (name !== undefined) {
+        await tx.user.update({ where: { id: userId }, data: { name } });
+      }
+      return tx.candidateProfile.upsert({
+        where: { userId },
+        create: { userId, ...profileData },
+        update: { ...profileData, updatedAt: new Date() },
+      });
     });
 
     return NextResponse.json({ profile });

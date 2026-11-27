@@ -189,8 +189,11 @@ export const templateCreateSchema = z.object({
 export const templateUpdateSchema = z.object(templateFields).partial();
 
 export const profileUpdateSchema = z.object({
+  name: z.string().trim().min(2, "Enter your name").max(80).optional(),
   headline: optionalText,
+  location: optionalText,
   phone: optionalText,
+  openToWork: z.boolean().optional(),
   currentDesignation: optionalText,
   totalExperience: optionalText,
   currentCompany: optionalText,
@@ -199,10 +202,12 @@ export const profileUpdateSchema = z.object({
   portfolioUrl: optionalUrl,
   preferredRoles: z.array(z.string().trim().min(1)).optional(),
   preferredLocations: z.array(z.string().trim().min(1)).optional(),
+  workMode: z.nativeEnum(WorkMode).nullable().optional(),
   expectedSalary: optionalText,
   noticePeriod: optionalText,
   skills: z.array(z.string().trim().min(1)).optional(),
   bio: optionalText,
+  projectsAchievements: optionalText,
 });
 
 const savedSearchFields = {

@@ -12,6 +12,9 @@ import {
   TaskStatus,
   WorkMode,
 } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import bcrypt from "bcryptjs";
 import { addDays, addHours, addMinutes, startOfDay, subDays, subHours } from "date-fns";
 
@@ -24,6 +27,49 @@ const day = startOfDay(new Date());
 
 function at(offsetDays: number, hour: number, minute = 0) {
   return addMinutes(addHours(startOfDay(addDays(day, offsetDays)), hour), minute);
+}
+
+function escapePdfText(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function createDemoPdf(title: string, fileName: string) {
+  const lines = [
+    "CareerOS - tailored resume version",
+    title,
+    `File: ${fileName}`,
+    "Stored privately in your local resume library.",
+  ];
+  let content = "BT\n/F1 18 Tf\n72 720 Td\n";
+  lines.forEach((line, index) => {
+    if (index > 0) content += "0 -30 Td\n";
+    content += `(${escapePdfText(line)}) Tj\n`;
+  });
+  content += "ET\n";
+
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(content, "latin1")} >>\nstream\n${content}endstream`,
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(pdf, "latin1"));
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefOffset = Buffer.byteLength(pdf, "latin1");
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets) {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+
+  return Buffer.from(pdf, "latin1");
 }
 
 async function main() {
@@ -45,63 +91,70 @@ async function main() {
 
   const user = await prisma.user.create({
     data: {
-      name: "Akshat Sharma",
+      name: "Hitesh Singh",
       email: DEMO_EMAIL,
       passwordHash,
       profile: {
         create: {
           headline: "DevOps Engineer · Cloud Infrastructure · SRE",
+          location: "Bengaluru, India",
           phone: "+91 98765 43210",
+          openToWork: true,
           currentDesignation: "DevOps Engineer",
           totalExperience: "5.5 years",
           currentCompany: "Nimbus Labs",
-          linkedinUrl: "https://linkedin.com/in/akshatsharma",
-          githubUrl: "https://github.com/akshatsharma",
-          portfolioUrl: "https://akshat.dev",
+          linkedinUrl: "https://linkedin.com/in/hiteshsingh",
+          githubUrl: "https://github.com/hiteshsingh",
+          portfolioUrl: "https://hitesh.dev",
           preferredRoles: ["DevOps Engineer", "Site Reliability Engineer", "Cloud Engineer", "Platform Engineer"],
           preferredLocations: ["Remote", "Bengaluru", "Hybrid"],
+          workMode: "HYBRID",
           expectedSalary: "₹32–40 LPA",
           noticePeriod: "30 days",
           skills: ["Kubernetes", "AWS", "Terraform", "Go", "Python", "Prometheus", "Grafana", "CI/CD", "Linux"],
           bio: "Infrastructure engineer who enjoys building calm, reliable systems. Currently exploring platform and SRE roles at product-led companies.",
+          projectsAchievements:
+            "Migrated a monolith to Kubernetes with zero-downtime rollouts. Built Terraform modules used across 12 services and cut deployment time by 40%.",
         },
       },
     },
   });
 
-  const resumes = await Promise.all([
-    prisma.resume.create({
+  const resumeSeed = [
+    { name: "DevOps Engineer Resume", fileName: "hitesh-singh-devops-2026.pdf" },
+    { name: "Cloud Engineer Resume", fileName: "hitesh-singh-cloud-2026.pdf" },
+    { name: "SRE Resume", fileName: "hitesh-singh-sre-2026.pdf" },
+  ];
+  const resumeStorageRoot = path.join(process.cwd(), ".data", "resumes");
+  const resumeStorageDir = path.join(resumeStorageRoot, user.id);
+  await rm(resumeStorageRoot, { recursive: true, force: true });
+  await mkdir(resumeStorageDir, { recursive: true, mode: 0o700 });
+
+  const resumes = [];
+  for (const [index, item] of resumeSeed.entries()) {
+    const storedName = `${randomUUID()}.pdf`;
+    const pdf = createDemoPdf(item.name, item.fileName);
+    await writeFile(path.join(resumeStorageDir, storedName), pdf, { mode: 0o600 });
+
+    const created = await prisma.resume.create({
       data: {
         userId: user.id,
-        name: "DevOps Engineer Resume",
-        fileName: "akshat-sharma-devops-2026.pdf",
-        fileUrl: "/resumes/akshat-sharma-devops-2026.pdf",
-        fileSize: 284_000,
+        name: item.name,
+        fileName: item.fileName,
+        fileUrl: "/api/profile/resume",
+        fileSize: pdf.length,
         mimeType: "application/pdf",
-        isDefault: true,
+        storagePath: path.join(user.id, storedName),
+        isDefault: index === 0,
       },
-    }),
-    prisma.resume.create({
-      data: {
-        userId: user.id,
-        name: "Cloud Engineer Resume",
-        fileName: "akshat-sharma-cloud-2026.pdf",
-        fileUrl: "/resumes/akshat-sharma-cloud-2026.pdf",
-        fileSize: 271_000,
-        mimeType: "application/pdf",
-      },
-    }),
-    prisma.resume.create({
-      data: {
-        userId: user.id,
-        name: "SRE Resume",
-        fileName: "akshat-sharma-sre-2026.pdf",
-        fileUrl: "/resumes/akshat-sharma-sre-2026.pdf",
-        fileSize: 298_000,
-        mimeType: "application/pdf",
-      },
-    }),
-  ]);
+    });
+    resumes.push(
+      await prisma.resume.update({
+        where: { id: created.id },
+        data: { fileUrl: `/api/profile/resume?id=${created.id}` },
+      }),
+    );
+  }
 
   const companySeed = [
     {

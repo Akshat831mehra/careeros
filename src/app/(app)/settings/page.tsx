@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 import { AppearanceSettings } from "./appearance-settings";
+import { AccountPhoneSettings } from "@/components/settings/account-phone-settings";
 
 // This route reads the user session on every request; allow it to block navigation.
 export const instant = false;
@@ -68,6 +69,7 @@ export default async function SettingsPage() {
                 </div>
                 <Badge variant="success">Verified</Badge>
               </div>
+              <AccountPhoneSettings phone={user.profile?.phone ?? ""} />
               <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-muted/50 px-3 py-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface text-muted">
                   <KeyRound className="h-3.5 w-3.5" />

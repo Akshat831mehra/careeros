@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordJobTitleUsage } from "@/lib/job-title-store";
 import { normalizeCityNames } from "@/lib/location-utils";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
@@ -42,8 +43,10 @@ export async function POST(request: Request) {
         sources: data.sources,
       },
     });
+    await recordJobTitleUsage(data.query);
     return NextResponse.json({ savedSearch }, { status: 201 });
   } catch (error) {
+    if (!isZodError(error)) console.error("Could not create saved search", error);
     return NextResponse.json(
       { error: firstZodMessage(error, "Could not create saved search.") },
       { status: isZodError(error) ? 400 : 500 },

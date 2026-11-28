@@ -18,3 +18,11 @@ Generation rules:
 
 The autocomplete API uses the full OpenStreetMap providers (Photon and
 Nominatim) alongside this dataset, so coverage is the union of all sources.
+
+# Job titles dataset
+
+`job-titles.ts` is a curated, maintainable seed vocabulary used by the role
+autocomplete. It is loaded into the `JobTitleSuggestion` database table by
+`npm run db:seed`; suggestions are queried by partial keywords and ranked by
+popularity plus real saved-search usage. Custom titles entered by users are
+also stored in the same table, so the vocabulary grows with actual usage.

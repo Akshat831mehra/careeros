@@ -17,6 +17,8 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import bcrypt from "bcryptjs";
 import { addDays, addHours, addMinutes, startOfDay, subDays, subHours } from "date-fns";
+import { jobTitleSeeds } from "../src/data/job-titles";
+import { normalizeJobTitle } from "../src/lib/job-title-utils";
 
 const prisma = new PrismaClient();
 
@@ -86,6 +88,7 @@ async function main() {
   await prisma.company.deleteMany();
   await prisma.candidateProfile.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.jobTitleSuggestion.deleteMany();
 
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
 
@@ -119,6 +122,24 @@ async function main() {
       },
     },
   });
+
+  for (const role of jobTitleSeeds) {
+    const normalizedTitle = normalizeJobTitle(role.title);
+    await prisma.jobTitleSuggestion.upsert({
+      where: { normalizedTitle },
+      update: {
+        title: role.title,
+        category: role.category,
+        popularity: role.popularity,
+      },
+      create: {
+        title: role.title,
+        normalizedTitle,
+        category: role.category,
+        popularity: role.popularity,
+      },
+    });
+  }
 
   const resumeSeed = [
     { name: "DevOps Engineer Resume", fileName: "hitesh-singh-devops-2026.pdf" },

@@ -442,6 +442,22 @@ model SavedSearch {
   @@index([userId, createdAt])
 }
 
+/// Shared role vocabulary for autocomplete. Populated from curated seed data
+/// and from job titles users actually save.
+model JobTitleSuggestion {
+  id              String    @id @default(cuid())
+  title           String
+  normalizedTitle String    @unique
+  category        String?
+  popularity      Int       @default(0)
+  usageCount      Int       @default(0)
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([usageCount])
+}
+
 model JobCapture {
   id             String           @id @default(cuid())
   userId         String

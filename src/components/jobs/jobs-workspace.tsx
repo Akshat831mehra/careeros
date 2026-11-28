@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationAutocomplete } from "@/components/jobs/location-autocomplete";
+import { RoleAutocomplete } from "@/components/jobs/role-autocomplete";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { deleteJson, patchJson, postJson } from "@/lib/client-api";
@@ -82,7 +83,7 @@ function initialSavedSearchDraft(search?: SavedSearchRow | null): SavedSearchDra
     experienceMax: search?.experienceMax === null || search?.experienceMax === undefined
       ? ""
       : String(search.experienceMax),
-    sources: search && search.sources.length > 0 ? [...search.sources] : [...ALL_SOURCES],
+    sources: search ? [...search.sources] : [],
   };
 }
 
@@ -100,16 +101,6 @@ export type CaptureRow = {
   createdAt: string;
   applicationId: string | null;
 };
-
-const ALL_SOURCES: JobSource[] = [
-  "LINKEDIN",
-  "NAUKRI",
-  "INDEED",
-  "INSTAHYRE",
-  "CUTSHORT",
-  "HIRIST",
-  "WELLFOUND",
-];
 
 function copyText(value: string, message: string) {
   if (navigator.clipboard?.writeText) {
@@ -378,22 +369,26 @@ export function JobsWorkspace({
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
           <form onSubmit={submitSearch} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="Search name" className="sm:col-span-1">
+            <Field label="Your Name" className="sm:col-span-1">
               <Input
                 name="name"
                 required
                 value={name}
                 onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                placeholder="e.g. 1-2 yrs · 24h"
+                placeholder="e.g. John Doe"
               />
             </Field>
-            <Field label="Role or keywords" className="sm:col-span-1">
-              <Input
+            <Field
+              label="Your Role"
+              hint="Start typing to find a role, or enter your own title."
+              className="sm:col-span-1"
+            >
+              <RoleAutocomplete
                 name="query"
                 required
                 value={query}
-                onChange={(event) => setDraft((current) => ({ ...current, query: event.target.value }))}
-                placeholder="Enter a role or keywords"
+                onChange={(next) => setDraft((current) => ({ ...current, query: next }))}
+                placeholder="e.g. DevOps Engineer"
               />
             </Field>
             <Field label="Location" hint={editing ? "Edit or remove individual cities before updating." : "Choose one or more cities."}>

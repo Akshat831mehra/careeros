@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeCityNames } from "@/lib/location-utils";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import {
@@ -21,12 +22,25 @@ export async function PATCH(request: Request, { params }: Context) {
 
   try {
     const data = savedSearchUpdateSchema.parse(await request.json());
+    const cityUpdate =
+      data.locations !== undefined
+        ? (() => {
+            const cities = normalizeCityNames(data.locations);
+            return { location: cities[0] ?? null, locations: cities };
+          })()
+        : data.location !== undefined
+          ? {
+              location: data.location,
+              locations: normalizeCityNames(data.location ? [data.location] : []),
+            }
+          : {};
+
     const savedSearch = await prisma.savedSearch.update({
       where: { id },
       data: {
+        ...cityUpdate,
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.query !== undefined ? { query: data.query } : {}),
-        ...(data.location !== undefined ? { location: data.location } : {}),
         ...(data.experienceMin !== undefined ? { experienceMin: data.experienceMin } : {}),
         ...(data.experienceMax !== undefined ? { experienceMax: data.experienceMax } : {}),
         ...(data.postedWithinHours !== undefined ? { postedWithinHours: data.postedWithinHours } : {}),

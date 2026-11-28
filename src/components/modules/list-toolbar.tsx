@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDraft } from "@/lib/use-draft";
 
 export type FilterDefinition = {
   key: string;
@@ -36,11 +37,18 @@ export function ListToolbar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [search, setSearch] = React.useState(searchParams.get("q") ?? "");
+  const paramSearch = searchParams.get("q") ?? "";
+  const { value: search, setValue: setSearch, clearDraft: clearSearchDraft } = useDraft<string>(
+    `list-search:${pathname}`,
+    paramSearch,
+  );
+  const lastParamSearch = React.useRef(paramSearch);
 
   React.useEffect(() => {
-    setSearch(searchParams.get("q") ?? "");
-  }, [searchParams]);
+    if (paramSearch === lastParamSearch.current) return;
+    lastParamSearch.current = paramSearch;
+    if (paramSearch !== search) setSearch(paramSearch);
+  }, [paramSearch, search, setSearch]);
 
   const updateParam = React.useCallback(
     (key: string, value: string) => {
@@ -79,7 +87,7 @@ export function ListToolbar({
           {search && (
             <button
               type="button"
-              onClick={() => setSearch("")}
+              onClick={() => void clearSearchDraft("")}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-foreground"
               aria-label="Clear search"
             >

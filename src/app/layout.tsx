@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Providers } from "@/components/providers";
+import { ScrollRestoration } from "@/components/scroll-restoration";
 import "./globals.css";
 
 // Every screen is session-scoped, so render per request instead of prerendering.
@@ -37,7 +38,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
       <body className="min-h-dvh bg-background font-sans text-foreground">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <ScrollRestoration />
+        </Providers>
       </body>
     </html>
   );

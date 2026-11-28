@@ -455,7 +455,7 @@ export function TasksWorkspace({
       )}
 
       <TaskFormDialog
-        key={editing?.id ?? "new"}
+        key={`${formOpen ? "open" : "closed"}-${editing?.id ?? "new"}`}
         open={formOpen}
         onOpenChange={setFormOpen}
         companies={companies}

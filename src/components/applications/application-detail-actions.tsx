@@ -64,6 +64,7 @@ export function ApplicationDetailActions({
       </DropdownMenu>
 
       <ApplicationFormDialog
+        key={`${editOpen ? "open" : "closed"}-${application.id}`}
         open={editOpen}
         onOpenChange={setEditOpen}
         companies={companies}

@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PersistentForm } from "@/components/forms/persistent-form";
 import { patchJson, postJson } from "@/lib/client-api";
 import {
   PRIORITY_OPTIONS,
@@ -106,13 +107,6 @@ export function TaskFormDialog({
   const [applicationId, setApplicationId] = React.useState(task?.applicationId ?? defaultApplicationId ?? "none");
   const isEdit = Boolean(task?.id);
 
-  React.useEffect(() => {
-    if (!open) return;
-    setCompanyId(task?.companyId ?? defaultCompanyId ?? "none");
-    setContactId(task?.contactId ?? defaultContactId ?? "none");
-    setApplicationId(task?.applicationId ?? defaultApplicationId ?? "none");
-  }, [open, task, defaultCompanyId, defaultContactId, defaultApplicationId]);
-
   async function handleSubmit(formEvent: React.FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     setPending(true);
@@ -136,6 +130,7 @@ export function TaskFormDialog({
       toast.success(task?.id ? "Task updated" : "Task added");
       router.refresh();
       onOpenChange(false);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save task");
     } finally {
@@ -153,7 +148,7 @@ export function TaskFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <PersistentForm draftKey={`task:${task?.id ?? "new"}`} onSubmit={handleSubmit}>
           <div className="max-h-[68vh] space-y-4 overflow-y-auto p-5">
             <Field label="Title" required>
               <Input
@@ -223,7 +218,7 @@ export function TaskFormDialog({
                 </Select>
               </Field>
               <Field label="Contact">
-                <Select value={contactId} onValueChange={setContactId}>
+                <Select name="contactId" value={contactId} onValueChange={setContactId}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -238,7 +233,7 @@ export function TaskFormDialog({
                 </Select>
               </Field>
               <Field label="Application">
-                <Select value={applicationId} onValueChange={setApplicationId}>
+                <Select name="applicationId" value={applicationId} onValueChange={setApplicationId}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -278,7 +273,7 @@ export function TaskFormDialog({
               {pending ? "Saving…" : isEdit ? "Save changes" : "Add task"}
             </Button>
           </DialogFooter>
-        </form>
+        </PersistentForm>
       </DialogContent>
     </Dialog>
   );

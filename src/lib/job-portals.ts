@@ -1,11 +1,19 @@
 import type { JobSource } from "@prisma/client";
+import { normalizeCityNames } from "@/lib/location-utils";
 
 export type JobSearchFilters = {
   query: string;
   location?: string | null;
+  locations?: string[] | null;
   experienceMin?: number | null;
   experienceMax?: number | null;
   postedWithinHours?: number | null;
+};
+
+export type PortalSearchLink = {
+  source: JobSource;
+  location: string;
+  url: string;
 };
 
 export const JOB_PORTALS: Array<{ source: JobSource; label: string; domain: string }> = [
@@ -40,9 +48,18 @@ function linkedInExperienceCodes(min: number | null | undefined, max: number | n
   return Array.from(codes).join(",");
 }
 
-export function buildPortalSearchUrl(source: JobSource, filters: JobSearchFilters) {
+function resolveSearchLocations(filters: JobSearchFilters) {
+  if (filters.locations?.length) return normalizeCityNames(filters.locations);
+  if (filters.location) return normalizeCityNames([filters.location]);
+  return [];
+}
+
+function buildPortalSearchUrlForLocation(
+  source: JobSource,
+  filters: JobSearchFilters,
+  location: string,
+) {
   const query = filters.query.trim();
-  const location = filters.location?.trim() ?? "";
   const hours = filters.postedWithinHours ?? null;
   const params = new URLSearchParams();
 
@@ -123,6 +140,26 @@ export function buildPortalSearchUrl(source: JobSource, filters: JobSearchFilter
   if (hours) params.set("posted", `${Math.max(1, Math.ceil(hours / 24))}d`);
   params.set("sort", "recent");
   return `https://wellfound.com/jobs?${params.toString()}`;
+}
+
+export function buildPortalSearchLinks(
+  source: JobSource,
+  filters: JobSearchFilters,
+): PortalSearchLink[] {
+  const locations = resolveSearchLocations(filters);
+  if (locations.length === 0) {
+    return [{ source, location: "", url: buildPortalSearchUrlForLocation(source, filters, "") }];
+  }
+
+  return locations.map((location) => ({
+    source,
+    location,
+    url: buildPortalSearchUrlForLocation(source, filters, location),
+  }));
+}
+
+export function buildPortalSearchUrl(source: JobSource, filters: JobSearchFilters) {
+  return buildPortalSearchLinks(source, filters)[0]?.url ?? "";
 }
 
 type BookmarkletOptions = {

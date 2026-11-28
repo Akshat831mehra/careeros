@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { PersistentForm } from "@/components/forms/persistent-form";
 import type { QuickAddCompany, QuickAddContact } from "./quick-add-provider";
 
 export type QuickAddTab = "company" | "application" | "contact" | "follow-up";
@@ -131,15 +132,6 @@ export function QuickAddDialog({
   const [followUpCompanyId, setFollowUpCompanyId] = React.useState<string>(defaultCompanyId ?? "none");
   const [followUpContactId, setFollowUpContactId] = React.useState<string>(defaultContactId ?? "none");
 
-  React.useEffect(() => {
-    if (!open) return;
-    setContactCompanyId(defaultCompanyId ?? "all");
-    setApplicationCompanyId(defaultCompanyId ?? "");
-    setFollowUpContactId(defaultContactId ?? "none");
-    const contactCompany = contacts.find((contact) => contact.id === defaultContactId)?.companyId;
-    setFollowUpCompanyId(defaultCompanyId ?? contactCompany ?? "none");
-  }, [open, defaultCompanyId, defaultContactId, contacts]);
-
   const finish = (message: string) => {
     toast.success(message);
     router.refresh();
@@ -165,6 +157,7 @@ export function QuickAddDialog({
       });
       form.reset();
       finish("Company added to your workspace");
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add company");
     } finally {
@@ -194,6 +187,7 @@ export function QuickAddDialog({
       });
       form.reset();
       finish("Application added");
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add application");
     } finally {
@@ -224,6 +218,7 @@ export function QuickAddDialog({
       form.reset();
       setContactCompanyId("all");
       finish("Contact added");
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add contact");
     } finally {
@@ -249,6 +244,7 @@ export function QuickAddDialog({
       });
       form.reset();
       finish("Follow-up scheduled");
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not schedule follow-up");
     } finally {
@@ -285,7 +281,7 @@ export function QuickAddDialog({
 
           <div className="max-h-[68vh] overflow-y-auto">
             <TabsContent value="company" className="mt-0">
-              <form onSubmit={createCompany}>
+              <PersistentForm draftKey="quick-add:company" onSubmit={createCompany}>
                 <div className="space-y-4 p-5">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Company name" required>
@@ -332,11 +328,11 @@ export function QuickAddDialog({
                   <FormError error={error} />
                 </div>
                 <FormActions pending={pending} onCancel={() => onOpenChange(false)} submitLabel="Add company" />
-              </form>
+              </PersistentForm>
             </TabsContent>
 
             <TabsContent value="application" className="mt-0">
-              <form onSubmit={createApplication}>
+              <PersistentForm draftKey="quick-add:application" onSubmit={createApplication}>
                 <div className="space-y-4 p-5">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Company" required>
@@ -413,18 +409,18 @@ export function QuickAddDialog({
                   <FormError error={error} />
                 </div>
                 <FormActions pending={pending} onCancel={() => onOpenChange(false)} submitLabel="Add application" />
-              </form>
+              </PersistentForm>
             </TabsContent>
 
             <TabsContent value="contact" className="mt-0">
-              <form onSubmit={createContact}>
+              <PersistentForm draftKey="quick-add:contact" onSubmit={createContact}>
                 <div className="space-y-4 p-5">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Full name" required>
                       <Input name="fullName" placeholder="e.g. Sarah Chen" required />
                     </Field>
                     <Field label="Company">
-                      <Select value={contactCompanyId} onValueChange={setContactCompanyId}>
+                      <Select name="companyId" value={contactCompanyId} onValueChange={setContactCompanyId}>
                         <SelectTrigger>
                           <SelectValue placeholder="No company" />
                         </SelectTrigger>
@@ -495,11 +491,11 @@ export function QuickAddDialog({
                   <FormError error={error} />
                 </div>
                 <FormActions pending={pending} onCancel={() => onOpenChange(false)} submitLabel="Add contact" />
-              </form>
+              </PersistentForm>
             </TabsContent>
 
             <TabsContent value="follow-up" className="mt-0">
-              <form onSubmit={createFollowUp}>
+              <PersistentForm draftKey="quick-add:follow-up" onSubmit={createFollowUp}>
                 <div className="space-y-4 p-5">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Title" required className="sm:col-span-2">
@@ -562,7 +558,7 @@ export function QuickAddDialog({
                   <FormError error={error} />
                 </div>
                 <FormActions pending={pending} onCancel={() => onOpenChange(false)} submitLabel="Schedule follow-up" />
-              </form>
+              </PersistentForm>
             </TabsContent>
           </div>
         </Tabs>

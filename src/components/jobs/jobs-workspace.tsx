@@ -14,19 +14,24 @@ import {
   Copy,
   ExternalLink,
   Loader2,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { JobCaptureKind, JobCaptureStatus, JobSource } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LocationAutocomplete } from "@/components/jobs/location-autocomplete";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { deleteJson, patchJson, postJson } from "@/lib/client-api";
+import { savedSearchLocations } from "@/lib/location-utils";
+import { deleteDraftByKey, useDraft } from "@/lib/use-draft";
 import {
   JOB_CAPTURE_KIND_LABELS,
   JOB_CAPTURE_KIND_VARIANTS,
@@ -37,7 +42,7 @@ import {
 } from "@/lib/constants";
 import {
   buildBookmarklet,
-  buildPortalSearchUrl,
+  buildPortalSearchLinks,
   JOB_PORTALS,
 } from "@/lib/job-portals";
 import { cn } from "@/lib/utils";
@@ -47,12 +52,39 @@ export type SavedSearchRow = {
   name: string;
   query: string;
   location: string | null;
+  locations: string[];
   experienceMin: number | null;
   experienceMax: number | null;
   postedWithinHours: number | null;
   sources: JobSource[];
   createdAt: string;
 };
+
+type SavedSearchDraft = {
+  name: string;
+  query: string;
+  locations: string[];
+  postedWithinHours: string;
+  experienceMin: string;
+  experienceMax: string;
+  sources: JobSource[];
+};
+
+function initialSavedSearchDraft(search?: SavedSearchRow | null): SavedSearchDraft {
+  return {
+    name: search?.name ?? "",
+    query: search?.query ?? "",
+    locations: search ? savedSearchLocations(search) : [],
+    postedWithinHours: String(search?.postedWithinHours ?? 24),
+    experienceMin: search?.experienceMin === null || search?.experienceMin === undefined
+      ? ""
+      : String(search.experienceMin),
+    experienceMax: search?.experienceMax === null || search?.experienceMax === undefined
+      ? ""
+      : String(search.experienceMax),
+    sources: search && search.sources.length > 0 ? [...search.sources] : [...ALL_SOURCES],
+  };
+}
 
 export type CaptureRow = {
   id: string;
@@ -68,6 +100,16 @@ export type CaptureRow = {
   createdAt: string;
   applicationId: string | null;
 };
+
+const ALL_SOURCES: JobSource[] = [
+  "LINKEDIN",
+  "NAUKRI",
+  "INDEED",
+  "INSTAHYRE",
+  "CUTSHORT",
+  "HIRIST",
+  "WELLFOUND",
+];
 
 function copyText(value: string, message: string) {
   if (navigator.clipboard?.writeText) {
@@ -112,8 +154,13 @@ export function JobsWorkspace({
   captures: CaptureRow[];
 }) {
   const router = useRouter();
-  const [sources, setSources] = React.useState<JobSource[]>(["LINKEDIN", "NAUKRI", "INDEED", "INSTAHYRE", "CUTSHORT", "HIRIST", "WELLFOUND"]);
-  const [creating, setCreating] = React.useState(false);
+  const [editing, setEditing] = React.useState<SavedSearchRow | null>(null);
+  const { value: draft, setValue: setDraft, clearDraft } = useDraft<SavedSearchDraft>(
+    `jobs:saved-search:${editing?.id ?? "new"}`,
+    initialSavedSearchDraft(editing),
+  );
+  const { name, query, locations, postedWithinHours, experienceMin, experienceMax, sources } = draft;
+  const [saving, setSaving] = React.useState(false);
   const [regenerating, setRegenerating] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
 
@@ -127,39 +174,57 @@ export function JobsWorkspace({
   );
 
   function toggleSource(source: JobSource) {
-    setSources((current) =>
-      current.includes(source) ? current.filter((item) => item !== source) : [...current, source],
-    );
+    setDraft((current) => ({
+      ...current,
+      sources: current.sources.includes(source)
+        ? current.sources.filter((item) => item !== source)
+        : [...current.sources, source],
+    }));
   }
 
-  async function createSearch(event: React.FormEvent<HTMLFormElement>) {
+  async function resetForm() {
+    await clearDraft();
+    setEditing(null);
+  }
+
+  function startEdit(search: SavedSearchRow) {
+    setEditing(search);
+  }
+
+  async function submitSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setCreating(true);
-    const form = event.currentTarget;
-    const fd = new FormData(form);
-    const number = (key: string) => {
-      const value = String(fd.get(key) ?? "").trim();
-      return value ? Number(value) : null;
+    setSaving(true);
+    const number = (value: string) => {
+      const trimmed = value.trim();
+      return trimmed ? Number(trimmed) : null;
+    };
+    const payload = {
+      name,
+      query,
+      locations,
+      experienceMin: number(experienceMin),
+      experienceMax: number(experienceMax),
+      postedWithinHours: number(postedWithinHours) ?? 24,
+      sources,
     };
 
     try {
-      await postJson("/api/saved-searches", {
-        name: fd.get("name"),
-        query: fd.get("query"),
-        location: fd.get("location"),
-        experienceMin: number("experienceMin"),
-        experienceMax: number("experienceMax"),
-        postedWithinHours: number("postedWithinHours") ?? 24,
-        sources,
-      });
-      form.reset();
-      setSources(["LINKEDIN", "NAUKRI", "INDEED", "INSTAHYRE", "CUTSHORT", "HIRIST", "WELLFOUND"]);
-      toast.success("Saved search created");
+      if (editing) {
+        await patchJson(`/api/saved-searches/${editing.id}`, payload);
+      } else {
+        await postJson("/api/saved-searches", payload);
+      }
+      toast.success(editing ? "Saved search updated" : "Saved search created");
+      await resetForm();
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not create saved search");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : `Could not ${editing ? "update" : "create"} saved search`,
+      );
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
@@ -168,6 +233,8 @@ export function JobsWorkspace({
     setBusyId(id);
     try {
       await deleteJson(`/api/saved-searches/${id}`);
+      await deleteDraftByKey(`jobs:saved-search:${id}`);
+      if (editing?.id === id) await resetForm();
       toast.success("Saved search deleted");
       router.refresh();
     } catch (error) {
@@ -305,29 +372,70 @@ export function JobsWorkspace({
           <div>
             <CardTitle>Saved searches</CardTitle>
             <p className="mt-1 text-[11px] text-muted">
-              Example: 1–2 years of experience, updated in the last 24 hours, across your selected portals.
+              Choose one or more cities, then open the generated city-specific links across your selected portals.
             </p>
           </div>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
-          <form onSubmit={createSearch} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <form onSubmit={submitSearch} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Search name" className="sm:col-span-1">
-              <Input name="name" required placeholder="DevOps · 1-2 yrs · 24h" />
+              <Input
+                name="name"
+                required
+                value={name}
+                onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                placeholder="e.g. 1-2 yrs · 24h"
+              />
             </Field>
             <Field label="Role or keywords" className="sm:col-span-1">
-              <Input name="query" required defaultValue="DevOps engineer" />
+              <Input
+                name="query"
+                required
+                value={query}
+                onChange={(event) => setDraft((current) => ({ ...current, query: event.target.value }))}
+                placeholder="Enter a role or keywords"
+              />
             </Field>
-            <Field label="Location">
-              <Input name="location" placeholder="Remote / Bengaluru" />
+            <Field label="Location" hint={editing ? "Edit or remove individual cities before updating." : "Choose one or more cities."}>
+              <LocationAutocomplete
+                values={locations}
+                onChange={(next) => setDraft((current) => ({ ...current, locations: next }))}
+              />
             </Field>
             <Field label="Posted within (hours)">
-              <Input name="postedWithinHours" type="number" min={1} defaultValue={24} />
+              <Input
+                name="postedWithinHours"
+                type="number"
+                min={1}
+                value={postedWithinHours}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, postedWithinHours: event.target.value }))
+                }
+              />
             </Field>
             <Field label="Min experience">
-              <Input name="experienceMin" type="number" min={0} placeholder="1" />
+              <Input
+                name="experienceMin"
+                type="number"
+                min={0}
+                placeholder="1"
+                value={experienceMin}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, experienceMin: event.target.value }))
+                }
+              />
             </Field>
             <Field label="Max experience">
-              <Input name="experienceMax" type="number" min={0} placeholder="2" />
+              <Input
+                name="experienceMax"
+                type="number"
+                min={0}
+                placeholder="2"
+                value={experienceMax}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, experienceMax: event.target.value }))
+                }
+              />
             </Field>
             <div className="sm:col-span-2">
               <Label className="mb-1.5 block">Portals</Label>
@@ -357,11 +465,22 @@ export function JobsWorkspace({
                 })}
               </div>
             </div>
-            <div className="flex items-end sm:col-span-2 lg:col-span-4">
-              <Button type="submit" variant="brand" disabled={creating || sources.length === 0}>
-                {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                Save search
+            <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+              <Button type="submit" variant="brand" disabled={saving || sources.length === 0}>
+                {saving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : editing ? (
+                  <Pencil className="h-3.5 w-3.5" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5" />
+                )}
+                {editing ? "Update search" : "Save search"}
               </Button>
+              {editing && (
+                <Button type="button" variant="ghost" onClick={() => void resetForm()}>
+                  <X className="h-3.5 w-3.5" /> Cancel
+                </Button>
+              )}
             </div>
           </form>
 
@@ -372,9 +491,11 @@ export function JobsWorkspace({
               </p>
             ) : (
               savedSearches.map((search) => {
+                const searchCities = savedSearchLocations(search);
                 const filters = {
                   query: search.query,
                   location: search.location,
+                  locations: searchCities,
                   experienceMin: search.experienceMin,
                   experienceMax: search.experienceMax,
                   postedWithinHours: search.postedWithinHours,
@@ -389,7 +510,10 @@ export function JobsWorkspace({
                 return (
                   <div
                     key={search.id}
-                    className="rounded-lg border border-border bg-surface-muted/40 px-3 py-2.5"
+                    className={cn(
+                      "rounded-lg border bg-surface-muted/40 px-3 py-2.5",
+                      editing?.id === search.id ? "border-brand/40" : "border-border",
+                    )}
                   >
                     <div className="flex flex-wrap items-start gap-2">
                       <div className="min-w-0 flex-1">
@@ -408,10 +532,18 @@ export function JobsWorkspace({
                         </div>
                         <p className="mt-1 truncate text-[10.5px] text-muted">
                           {search.query}
-                          {search.location ? ` · ${search.location}` : ""}
+                          {searchCities.length > 0 ? ` · ${searchCities.join(", ")}` : ""}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[10px]"
+                          onClick={() => startEdit(search)}
+                        >
+                          <Pencil className="h-3 w-3" /> Edit
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -432,20 +564,23 @@ export function JobsWorkspace({
                       </div>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {search.sources.map((source) => (
-                        <a
-                          key={source}
-                          href={buildPortalSearchUrl(source, filters)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-[10px] text-muted-strong transition-colors hover:text-brand"
-                        >
-                          <Badge variant={JOB_SOURCE_VARIANTS[source]} className="border-0 px-0">
-                            {JOB_SOURCE_LABELS[source]}
-                          </Badge>
-                          <ExternalLink className="h-2.5 w-2.5" />
-                        </a>
-                      ))}
+                      {search.sources.flatMap((source) =>
+                        buildPortalSearchLinks(source, filters).map((link) => (
+                          <a
+                            key={`${source}-${link.location || "all"}`}
+                            href={link.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-[10px] text-muted-strong transition-colors hover:text-brand"
+                          >
+                            <Badge variant={JOB_SOURCE_VARIANTS[source]} className="border-0 px-0">
+                              {JOB_SOURCE_LABELS[source]}
+                            </Badge>
+                            {link.location && <span className="text-[9.5px] text-muted">· {link.location}</span>}
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )),
+                      )}
                     </div>
                   </div>
                 );

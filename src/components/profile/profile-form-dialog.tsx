@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PersistentForm } from "@/components/forms/persistent-form";
 import { WORK_MODE_OPTIONS } from "@/lib/constants";
 import { patchJson } from "@/lib/client-api";
 
@@ -131,6 +132,7 @@ export function ProfileFormDialog({
       toast.success("Profile updated");
       router.refresh();
       onOpenChange(false);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save profile");
     } finally {
@@ -148,7 +150,7 @@ export function ProfileFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <PersistentForm draftKey="profile" onSubmit={handleSubmit}>
           <div className="max-h-[68vh] space-y-4 overflow-y-auto p-5">
             <SectionTitle>Professional information</SectionTitle>
 
@@ -249,7 +251,11 @@ export function ProfileFormDialog({
                 />
               </Field>
               <Field label="Work mode">
-                <Select value={workMode} onValueChange={(value) => setWorkMode(value as WorkMode)}>
+                <Select
+                  name="workMode"
+                  value={workMode}
+                  onValueChange={(value) => setWorkMode(value as WorkMode)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select work mode" />
                   </SelectTrigger>
@@ -285,7 +291,7 @@ export function ProfileFormDialog({
               {pending ? "Saving…" : "Save profile"}
             </Button>
           </DialogFooter>
-        </form>
+        </PersistentForm>
       </DialogContent>
     </Dialog>
   );

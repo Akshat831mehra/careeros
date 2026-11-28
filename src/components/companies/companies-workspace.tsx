@@ -324,7 +324,7 @@ export function CompaniesWorkspace({ companies }: { companies: CompanyRow[] }) {
       )}
 
       <CompanyFormDialog
-        key={editing?.id ?? "new"}
+        key={`${formOpen ? "open" : "closed"}-${editing?.id ?? "new"}`}
         open={formOpen}
         onOpenChange={setFormOpen}
         company={editing}

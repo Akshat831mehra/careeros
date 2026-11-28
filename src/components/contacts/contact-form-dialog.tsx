@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PersistentForm } from "@/components/forms/persistent-form";
 import { patchJson, postJson } from "@/lib/client-api";
 import {
   CONTACT_TYPE_OPTIONS,
@@ -82,11 +83,6 @@ export function ContactFormDialog({
   const [companyId, setCompanyId] = React.useState(contact?.companyId ?? defaultCompanyId ?? "none");
   const isEdit = Boolean(contact?.id);
 
-  React.useEffect(() => {
-    if (!open) return;
-    setCompanyId(contact?.companyId ?? defaultCompanyId ?? "none");
-  }, [open, contact, defaultCompanyId]);
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
@@ -115,6 +111,7 @@ export function ContactFormDialog({
       router.refresh();
       onOpenChange(false);
       onSaved?.(result.contact.id);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save contact");
     } finally {
@@ -132,14 +129,14 @@ export function ContactFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <PersistentForm draftKey={`contact:${contact?.id ?? "new"}`} onSubmit={handleSubmit}>
           <div className="max-h-[68vh] space-y-4 overflow-y-auto p-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Full name" className="sm:col-span-2">
                 <Input name="fullName" defaultValue={contact?.fullName ?? ""} placeholder="e.g. Sarah Chen" required autoFocus />
               </Field>
               <Field label="Company">
-                <Select value={companyId} onValueChange={setCompanyId}>
+                <Select name="companyId" value={companyId} onValueChange={setCompanyId}>
                   <SelectTrigger>
                     <SelectValue placeholder="No company" />
                   </SelectTrigger>
@@ -222,7 +219,7 @@ export function ContactFormDialog({
               {pending ? "Saving…" : isEdit ? "Save changes" : "Add contact"}
             </Button>
           </DialogFooter>
-        </form>
+        </PersistentForm>
       </DialogContent>
     </Dialog>
   );
